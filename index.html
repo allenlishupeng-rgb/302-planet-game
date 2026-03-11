@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>欢迎来到三0二星球 - 3B英语大冒险</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #090a0f; color: white; font-family: sans-serif; }
+        @keyframes twinkle { 0%, 100% { opacity: 0.8; } 50% { opacity: 0.2; } }
+        @keyframes meteor { 0% { transform: translateX(100vw) translateY(-100vh); opacity: 1; } 100% { transform: translateX(-100vw) translateY(100vh); opacity: 0; } }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes comboPop { 0% { transform: scale(0.5); opacity: 0; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        @keyframes textPop { 0% { transform: scale(0.2); opacity: 0; } 70% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+        .space-bg { background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%); }
+        .planet-glow { box-shadow: 0 0 25px rgba(255, 255, 255, 0.4), inset 0 0 15px rgba(0,0,0,0.8); }
+        .shake-anim { animation: shake 0.4s ease-in-out; }
+        .win-text-anim { animation: textPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .life-up-anim { animation: textPop 0.5s ease-out; }
+        
+        /* 纯 CSS 解决悬停卡顿的翻转体系 */
+        .flip-card { perspective: 1000px; }
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.5s cubic-bezier(0.4, 0.2, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+        /* 悬停外层，内层翻转，防止触控区域闪烁 */
+        .flip-card:hover .flip-card-inner { transform: rotateY(180deg); }
+        
+        .flip-card-front, .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            border-radius: 0.75rem;
+        }
+        .flip-card-back { transform: rotateY(180deg); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        const WIN_MESSAGES = [
+          "不愧是你，这就是大佬的实力吗？", "这波操作我给满分，泰裤辣！",
+          "你就是我的神！YYDS！", "起飞！这波稳了。",
+          "这就是传说中的‘核心感’吗？", "愿称你为最强，没有之一。", "太厉害了，我的小登"
+        ];
+
+        const UNITS_DATA = [
+          { id: 1, name: "Unit 1", title: "School Things", color: "from-blue-500 to-indigo-700", emoji: "🪐",
+            modes: {
+              vocab: [["school", "学校"], ["thing", "用品"], ["pen", "钢笔"], ["pencil", "铅笔"], ["ruler", "直尺"], ["rubber", "橡皮"], ["schoolbag", "书包"], ["pencil case", "铅笔盒"], ["guess", "猜测"], ["again", "再一次"]],
+              phrase: [["school things", "学习用品"], ["my pencil case", "我的铅笔盒"], ["take a look", "看一看"], ["a big book", "大书"], ["guess again", "再猜"], ["good idea", "好主意"], ["short pencils", "短铅笔"], ["in your schoolbag", "在书包里"]],
+              sentence: [["What's this?", "这是什么？"], ["It's my pencil case.", "它是我的铅笔盒。"], ["What's that?", "那是什么？"], ["It's my rubber.", "它是我的橡皮。"], ["Take a look.", "看一看。"], ["Is it a ruler?", "它是尺子吗？"], ["No, it isn't.", "不，它不是。"], ["Yes, it is.", "是的，它是。"], ["You're right.", "你是对的。"]],
+              phonics: [["p /p/", "pen"], ["p /p/", "put"], ["p /p/", "pencil"], ["p /p/", "park"], ["p /p/", "parrot"], ["b /b/", "ball"], ["b /b/", "box"], ["b /b/", "bird"], ["b /b/", "big"], ["b /b/", "banana"]]
+            }
+          },
+          { id: 2, name: "Unit 2", title: "Clean classroom", color: "from-green-500 to-emerald-800", emoji: "🌍",
+            modes: {
+              vocab: [["classroom", "教室"], ["window", "窗户"], ["blackboard", "黑板"], ["chair", "椅子"], ["sweep", "打扫"], ["floor", "地板"], ["desk", "课桌"], ["dirty", "肮脏的"], ["clean", "干净的"], ["close", "关闭"]],
+              phrase: [["put away", "收起"], ["close the window", "关窗户"], ["clean the blackboard", "擦黑板"], ["sweep the floor", "扫地"], ["big and new", "又大又新"], ["keep it clean", "保持干净"], ["close the door", "关门"], ["look outside", "看外面"], ["go out to play", "出去玩"]],
+              sentence: [["Let's clean our classroom.", "让我们打扫教室。"], ["Sweep the floor, please.", "请扫地。"], ["Please clean your desk.", "请清洁你的桌子。"], ["Look! That desk is dirty!", "看！那张桌子很脏！"], ["It's a good day.", "今天是个好天。"], ["Put away your books.", "放好你的书。"], ["I can clean the blackboard.", "我会擦黑板。"], ["Me too!", "我也是！"]],
+              phonics: [["c /k/", "cake"], ["c /k/", "cook"], ["k /k/", "book"], ["k /k/", "desk"], ["k /k/", "make"], ["k /k/", "like"], ["g /g/", "guess"], ["g /g/", "bag"], ["g /g/", "go"], ["g /g/", "egg"]]
+            }
+          },
+          { id: 3, name: "Unit 3", title: "School Rules", color: "from-yellow-400 to-orange-600", emoji: "🌕",
+            modes: {
+              vocab: [["rule", "规则"], ["library", "图书馆"], ["shout", "大声叫"], ["talk", "说话"], ["eat", "吃"], ["run", "奔跑"], ["late", "迟到的"], ["quiet", "安静的"], ["follow", "遵循"], ["sweet", "糖果"]],
+              phrase: [["our library", "我们的图书馆"], ["follow the rules", "遵守规则"], ["make rules", "制定规则"], ["sit down", "坐下"], ["look out the window", "看向窗外"], ["keep quiet", "保持安静"], ["talk in class", "在课堂说话"], ["eat here", "在这里吃"]],
+              sentence: [["Don't shout.", "不要叫喊。"], ["This is our library.", "这是我们的图书馆。"], ["Please follow the rules.", "请遵守规则。"], ["Sit down, please.", "请坐下。"], ["You're late.", "你迟到了。"], ["Don't look out.", "不要往窗外看。"], ["Don't draw on desk.", "不要在桌子上画画。"], ["Keep quiet, please.", "请保持安静。"]],
+              phonics: [["t /t/", "talk"], ["t /t/", "afternoon"], ["t /t/", "meet"], ["t /t/", "not"], ["t /t/", "today"], ["d /d/", "day"], ["d /d/", "dog"], ["d /d/", "duck"], ["d /d/", "door"], ["d /d/", "good"]]
+            }
+          },
+          { id: 4, name: "Unit 4", title: "After Class", color: "from-pink-500 to-rose-800", emoji: "☄️",
+            modes: {
+              vocab: [["play", "玩耍"], ["outside", "在外面"], ["tree", "树木"], ["flower", "花朵"], ["plane", "飞机"], ["far", "远"], ["where", "哪里"], ["find", "找到"], ["student", "学生"], ["beautiful", "美丽的"]],
+              phrase: [["have fun", "玩得高兴"], ["after class", "下课后"], ["behind the tree", "在树后面"], ["by the tree", "在树旁边"], ["play hide-and-seek", "玩捉迷藏"], ["in the flowers", "在花丛里"], ["go very far", "走得很远"], ["a lovely day", "极好的天"], ["in the garden", "在花园里"]],
+              sentence: [["Let's play hide-and-seek.", "让我们玩捉迷藏。"], ["Who's behind the tree?", "谁在树后面？"], ["Can you see?", "你能看到吗？"], ["It's break time.", "现在是休息时间。"], ["Let's play outside.", "让我们出去玩。"], ["Where's my plane?", "我的飞机在哪里？"], ["I can't find it.", "我找不到它了。"], ["It's in the tree.", "它在树上。"]],
+              phonics: [["f /f/", "fish"], ["f /f/", "funny"], ["f /f/", "far"], ["f /f/", "fat"], ["v /v/", "van"], ["v /v/", "have"], ["f /f/", "flower"], ["f /f/", "find"], ["v /v/", "very"], ["v /v/", "lovely"]]
+            }
+          },
+          { id: 5, name: "Unit 5", title: "Fruit", color: "from-red-500 to-pink-700", emoji: "🍎",
+            modes: {
+              vocab: [["fruit", "水果"], ["orange", "橙子"], ["grape", "葡萄"], ["banana", "香蕉"], ["apple", "苹果"], ["mango", "芒果"], ["share", "分享"], ["like", "喜欢"], ["sweet", "甜的"], ["salad", "沙拉"]],
+              phrase: [["like apples", "喜欢苹果"], ["red and sweet", "又红又甜"], ["lots of fruit", "许多水果"], ["share the mangoes", "分享芒果"], ["a magic trick", "一个魔术"], ["how many mangoes", "多少个芒果"], ["make a fruit salad", "做水果沙拉"], ["be good for", "对...有好处"]],
+              sentence: [["I like apples.", "我喜欢苹果。"], ["Oranges are yummy.", "橙子很美味。"], ["Grapes are great.", "葡萄好极了。"], ["Why do you like fruit?", "你为什么喜欢水果？"], ["Do you have a banana?", "你有香蕉吗？"], ["Let's share the mangoes.", "让我们分享芒果。"], ["They're sweet.", "它们很甜。"], ["Fruit is good for us.", "水果对我们有好处。"]],
+              phonics: [["m /m/", "milk"], ["m /m/", "monkey"], ["m /m/", "many"], ["m /m/", "my"], ["m /m/", "Miss"], ["n /n/", "no"], ["n /n/", "nice"], ["n /n/", "name"], ["n /n/", "now"], ["n /n/", "banana"]]
+            }
+          },
+          { id: 6, name: "Unit 6", title: "On the farm", color: "from-orange-500 to-amber-800", emoji: "🌾",
+            modes: {
+              vocab: [["farm", "农场"], ["rabbit", "兔子"], ["cow", "奶牛"], ["sheep", "绵羊"], ["chicken", "鸡"], ["carrot", "胡萝卜"], ["pig", "猪"], ["home", "家"], ["cute", "可爱的"], ["help", "帮助"]],
+              phrase: [["on the farm", "在农场上"], ["a big carrot", "大胡萝卜"], ["help me", "帮我"], ["come to my home", "来到我家"], ["two rabbits", "两只兔子"], ["in the rain", "在雨里"], ["have a rest", "休息一下"], ["run again", "再次奔跑"], ["very cute", "非常可爱"]],
+              sentence: [["Welcome to my farm.", "欢迎来到农场。"], ["What are these?", "这些是什么？"], ["They're carrots.", "它们是胡萝卜。"], ["Are those carrots too?", "那些也是胡萝卜吗？"], ["Is this a home for pigs?", "这个是猪的家吗？"], ["Are they sheep?", "它们是羊吗？"], ["These rabbits are cute.", "这些兔子非常可爱。"], ["What do they like?", "它们喜欢什么？"]],
+              phonics: [["r /r/", "right"], ["r /r/", "library"], ["r /r/", "orange"], ["r /r/", "crayon"], ["r /r/", "run"], ["r /r/", "rest"], ["r /r/", "rain"], ["r /r/", "rabbit"], ["r /r/", "ruler"], ["r /r/", "red"]]
+            }
+          },
+          { id: 7, name: "Unit 7", title: "Animals", color: "from-teal-400 to-cyan-800", emoji: "🐘",
+            modes: {
+              vocab: [["animal", "动物"], ["bear", "熊"], ["lion", "狮子"], ["monkey", "猴子"], ["tiger", "老虎"], ["panda", "熊猫"], ["elephant", "大象"], ["fish", "鱼"], ["zoo", "动物园"], ["feed", "喂食"]],
+              phrase: [["at the zoo", "在动物园"], ["fresh bamboo", "新鲜的竹子"], ["sleep and play", "睡觉和玩耍"], ["watch them all day", "看它们一整天"], ["like cakes", "喜欢蛋糕"], ["in the pool", "在池子里"], ["cute and cool", "可爱又酷"], ["feed animals", "喂食动物"]],
+              sentence: [["Let's see the pandas.", "让我们看熊猫。"], ["Love to eat bamboo.", "喜爱吃新鲜的竹子。"], ["Watch them all day.", "能看它们一整天。"], ["Do you like cakes?", "你喜欢蛋糕吗？"], ["Elephants in the pool.", "池子里的大象。"], ["I like tigers. They're cool.", "我喜欢老虎，它们很酷。"], ["Would you like a banana?", "你想要香蕉吗？"], ["Don't feed animals.", "不要给动物喂食。"]],
+              phonics: [["l /l/", "love"], ["l /l/", "live"], ["l /l/", "look"], ["l /l/", "let"], ["l /l/", "long"], ["l /l/", "list"], ["l /l/", "little"], ["l /l/", "lion"], ["l /l/", "lunch"], ["l /l/", "library"]]
+            }
+          },
+          { id: 8, name: "Unit 8", title: "Colours", color: "from-violet-500 to-fuchsia-800", emoji: "🌈",
+            modes: {
+              vocab: [["colour", "颜色"], ["yellow", "黄色"], ["blue", "蓝色"], ["red", "红色"], ["orange", "橙色"], ["pink", "粉色"], ["green", "绿色"], ["brown", "棕色"], ["black", "黑色"], ["white", "白色"]],
+              phrase: [["buy a balloon", "买气球"], ["want a balloon", "想要气球"], ["what colour", "什么颜色"], ["a green balloon", "绿气球"], ["that one", "那一个"], ["on the tree", "在树上"], ["pick an apple", "摘苹果"], ["my little friend", "我的小朋友"], ["very cool", "非常酷"]],
+              sentence: [["Can I buy a balloon?", "能买气球吗？"], ["I want a pink balloon.", "我想要粉色气球。"], ["That one is for you.", "那一个是给你的。"], ["What's on the tree?", "树上的是什么？"], ["Pick an apple for me?", "为我摘苹果吗？"], ["It's my little friend.", "它是我的朋友。"], ["What colour is it now?", "它是什么颜色？"], ["It's green again.", "它又变绿了。"]],
+              phonics: [["b /b/", "balloon"], ["b /b/", "brown"], ["b /b/", "black"], ["b /b/", "blue"], ["c /k/", "colour"], ["c /k/", "chameleon"], ["p /p/", "pink"], ["p /p/", "pick"], ["g /g/", "green"], ["w /w/", "white"]]
+            }
+          }
+        ];
+
+        const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
+        
+        const getWrongOptions = (correct, allPairs, count = 2, globalPairs = []) => {
+          let others = allPairs.filter(p => p[0] !== correct[0] && p[1] !== correct[1]);
+          if (others.length < count && globalPairs.length > 0) {
+             const extraOthers = globalPairs.filter(p => p[0] !== correct[0] && p[1] !== correct[1]);
+             others = [...others, ...extraOthers];
+          }
+          if (others.length < count) {
+             others = allPairs.filter(p => p[1] !== correct[1]);
+          }
+          const shuffledOthers = shuffle(others).slice(0, count);
+          return shuffle([correct, ...shuffledOthers]);
+        };
+
+        const AudioEngine = {
+          ctx: null, bgmPlaying: false,
+          init() {
+            if (!this.ctx) {
+              const AudioContext = window.AudioContext || window.webkitAudioContext;
+              if (AudioContext) this.ctx = new AudioContext();
+            }
+            if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+          },
+          startBGM() {
+            this.init();
+            if (!this.ctx || this.bgmPlaying) return;
+            this.bgmPlaying = true;
+            const freqs = { G4: 392, E4: 329.6, A4: 440, B4: 493.9, Bb4: 466.2, C5: 523.3, D5: 587.3, E5: 659.3, F5: 698.5, G5: 784, A5: 880 };
+            const seq = ['E5',0,'E5',0, 0,'E5',0,'C5', 'E5',0,0,0, 'G5',0,0,0, 0,0,0,0, 'G4',0,0,0, 0,0,0,0, 0,0,0,0, 'C5',0,0,0, 0,0,'G4',0, 0,0,'E4',0, 0,0,'A4',0, 0,'B4',0,'Bb4', 'A4',0,0,0, 'G4',0,'E5',0, 'G5',0,'A5',0, 0,'F5',0,'G5', 0,'E5',0,0, 'C5',0,'D5',0, 'B4',0,0,0 ];
+            const stepTime = 0.12; let nextNoteTime = this.ctx.currentTime + 0.1; let currentStep = 0;
+            const schedule = () => {
+              if (!this.bgmPlaying) return;
+              while (nextNoteTime < this.ctx.currentTime + 0.5) {
+                const note = seq[currentStep];
+                if (note) {
+                  const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                  osc.type = 'square'; osc.frequency.value = freqs[note];
+                  gain.gain.setValueAtTime(0.02, nextNoteTime); gain.gain.setTargetAtTime(0, nextNoteTime + stepTime * 0.8, 0.015);
+                  osc.connect(gain); gain.connect(this.ctx.destination);
+                  osc.start(nextNoteTime); osc.stop(nextNoteTime + stepTime);
+                }
+                nextNoteTime += stepTime; currentStep = (currentStep + 1) % seq.length;
+              }
+              this.bgmTimer = setTimeout(schedule, 100);
+            };
+            schedule();
+          },
+          play(type) {
+            this.init(); if (!this.ctx) return; const t = this.ctx.currentTime;
+            if (type === 'whoosh') {
+              const bufferSize = this.ctx.sampleRate * 0.3; const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+              const data = buffer.getChannelData(0); for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+              const noise = this.ctx.createBufferSource(); noise.buffer = buffer;
+              const filter = this.ctx.createBiquadFilter(); filter.type = 'bandpass'; filter.Q.value = 1.2; filter.frequency.setValueAtTime(1500, t); filter.frequency.exponentialRampToValueAtTime(100, t + 0.25);
+              const gain = this.ctx.createGain(); gain.gain.setValueAtTime(0.4, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
+              noise.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination); noise.start(t);
+            } else if (type === 'correct') {
+              const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(800, t); osc.frequency.exponentialRampToValueAtTime(1200, t + 0.1);
+              osc.connect(gain); gain.connect(this.ctx.destination); gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+              osc.start(t); osc.stop(t + 0.5);
+            } else if (type === 'wrong') {
+              const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain(); osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, t); osc.frequency.exponentialRampToValueAtTime(80, t + 0.3);
+              osc.connect(gain); gain.connect(this.ctx.destination); gain.gain.setValueAtTime(0.2, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.3);
+              osc.start(t); osc.stop(t + 0.3);
+            } else if (type === '1up') {
+              const notes = [659.25, 783.99, 1046.50, 1318.51, 1567.98, 2093.00];
+              notes.forEach((freq, i) => {
+                const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain(); osc.type = 'square'; osc.frequency.value = freq;
+                osc.connect(gain); gain.connect(this.ctx.destination); gain.gain.setValueAtTime(0, t + i * 0.05); gain.gain.linearRampToValueAtTime(0.1, t + i * 0.05 + 0.01); gain.gain.exponentialRampToValueAtTime(0.01, t + i * 0.05 + 0.1);
+                osc.start(t + i * 0.05); osc.stop(t + i * 0.05 + 0.1);
+              });
+            } else if (type === 'win') {
+              const notes = [523.25, 659.25, 783.99, 1046.50];
+              notes.forEach((freq, i) => {
+                const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain(); osc.type = 'sine'; osc.frequency.value = freq;
+                osc.connect(gain); gain.connect(this.ctx.destination); gain.gain.setValueAtTime(0, t + i * 0.1); gain.gain.linearRampToValueAtTime(0.2, t + i * 0.1 + 0.05); gain.gain.exponentialRampToValueAtTime(0.01, t + i * 0.1 + 0.6);
+                osc.start(t + i * 0.1); osc.stop(t + i * 0.1 + 0.6);
+              });
+            }
+          }
+        };
+
+        const SpaceBackground = () => (
+          <div className="fixed inset-0 space-bg overflow-hidden pointer-events-none z-0">
+            {[...Array(40)].map((_, i) => (
+              <div key={i} className="absolute bg-white rounded-full" style={{ width: Math.random() * 3 + 'px', height: Math.random() * 3 + 'px', top: Math.random() * 100 + '%', left: Math.random() * 100 + '%', animation: `twinkle ${Math.random() * 3 + 1}s infinite alternate` }} />
+            ))}
+            {[...Array(4)].map((_, i) => (
+              <div key={`meteor-${i}`} className="absolute w-[2px] h-[50px] bg-gradient-to-b from-transparent to-white rounded-full" style={{ top: Math.random() * 50 + '%', left: Math.random() * 50 + 50 + '%', transform: 'rotate(45deg)', animation: `meteor ${Math.random() * 5 + 3}s linear infinite`, animationDelay: `${Math.random() * 5}s` }} />
+            ))}
+          </div>
+        );
+
+        function App() {
+          const [screen, setScreen] = useState('MAP');
+          const [selectedPlanet, setSelectedPlanet] = useState(null);
+          const [currentMode, setCurrentMode] = useState(null); 
+          const [lives, setLives] = useState(3);
+          const [score, setScore] = useState(0);
+          
+          // 新增：全局积分类状态
+          const [globalScore, setGlobalScore] = useState(0);
+          const [nextLifeScore, setNextLifeScore] = useState(5000);
+          
+          const [combo, setCombo] = useState(1);
+          const [showCombo, setShowCombo] = useState(false);
+          const [isGameEnded, setIsGameEnded] = useState(false);
+          const [savedData, setSavedData] = useState({});
+          const [winMessage, setWinMessage] = useState("");
+          const [timeLeft, setTimeLeft] = useState(0);
+          const [maxTime, setMaxTime] = useState(0);
+          const [gameData, setGameData] = useState([]);
+          const [currentIndex, setCurrentIndex] = useState(0);
+          const [vocabLeft, setVocabLeft] = useState([]);
+          const [vocabRight, setVocabRight] = useState([]);
+          const [selectedLeft, setSelectedLeft] = useState(null);
+          const [selectedRight, setSelectedRight] = useState(null);
+          const [matchedPairs, setMatchedPairs] = useState([]);
+          const [sentenceWords, setSentenceWords] = useState([]);
+          const [selectedWords, setSelectedWords] = useState([]);
+          const [wrongShake, setWrongShake] = useState(false);
+          const [heartPop, setHeartPop] = useState(false);
+
+          // 使用 useMemo 缓存选项，彻底防止倒计时重新渲染导致的洗牌
+          const currentOptions = useMemo(() => {
+            if (screen !== 'GAME' || !selectedPlanet || !currentMode || !gameData[currentIndex]) return [];
+            if (currentMode === 'phrase') {
+              const fullPool = selectedPlanet.modes[currentMode];
+              return getWrongOptions(gameData[currentIndex], fullPool, 2); // 3 选 1
+            }
+            if (currentMode === 'phonics') {
+              const fullPool = selectedPlanet.modes[currentMode];
+              const globalPool = UNITS_DATA.flatMap(u => u.modes.phonics || []); // 注入全局库防止单一音标单元无解
+              return getWrongOptions(gameData[currentIndex], fullPool, 2, globalPool); // 生成2个干扰项，总共3卡牌
+            }
+            return [];
+          }, [currentIndex, gameData, currentMode, selectedPlanet, screen]);
+
+          useEffect(() => {
+            const saved = localStorage.getItem('spaceData_3B'); if (saved) setSavedData(JSON.parse(saved));
+            const savedGlobal = localStorage.getItem('globalScore_3B'); if (savedGlobal) setGlobalScore(parseInt(savedGlobal, 10));
+            
+            const handleFirstInteraction = () => { AudioEngine.startBGM(); document.removeEventListener('click', handleFirstInteraction); };
+            document.addEventListener('click', handleFirstInteraction);
+            return () => document.removeEventListener('click', handleFirstInteraction);
+          }, []);
+
+          // 自动奖命机制 (通过全局积累触发)
+          useEffect(() => {
+            if (score >= nextLifeScore) {
+              const livesToAdd = Math.floor((score - nextLifeScore) / 5000) + 1;
+              setLives(l => l + livesToAdd); setNextLifeScore(prev => prev + livesToAdd * 5000);
+              AudioEngine.play('1up'); setHeartPop(true); setTimeout(() => setHeartPop(false), 500);
+            }
+          }, [score, nextLifeScore]);
+
+          useEffect(() => {
+            if (screen !== 'GAME' || isGameEnded || wrongShake || timeLeft <= 0) return;
+            const timerId = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+            return () => clearInterval(timerId);
+          }, [screen, isGameEnded, wrongShake, timeLeft]);
+
+          useEffect(() => {
+            if (screen === 'GAME' && !isGameEnded && !wrongShake && timeLeft === 0) {
+              triggerWrong();
+              const t = currentMode === 'vocab' ? 45 : currentMode === 'sentence' ? 20 : 12;
+              setTimeLeft(t); setMaxTime(t);
+            }
+          }, [timeLeft, screen, isGameEnded, wrongShake, currentMode]);
+
+          const triggerWrong = () => {
+            AudioEngine.play('wrong'); setWrongShake(true); setCombo(1); setScore(s => Math.max(0, s - 1000)); 
+            setLives(l => { const nl = l - 1; if (nl <= 0) setTimeout(() => setIsGameEnded('lose'), 400); return nl; });
+            setTimeout(() => setWrongShake(false), 400);
+          };
+
+          const triggerCorrect = () => {
+            AudioEngine.play('correct'); 
+            const gained = 1000 * selectedPlanet.id;
+            setScore(s => s + gained);
+            
+            // 同步增加全局积分
+            setGlobalScore(prev => {
+               const n = prev + gained;
+               localStorage.setItem('globalScore_3B', n);
+               return n;
+            });
+            
+            setCombo(c => c + 1); setShowCombo(true); setTimeout(() => setShowCombo(false), 800);
+          };
+          
+          // 手动购买生命/复活函数
+          const handleBuyLife = () => {
+            if (globalScore >= 1000) {
+              AudioEngine.play('1up');
+              setGlobalScore(prev => {
+                const n = prev - 1000;
+                localStorage.setItem('globalScore_3B', n);
+                return n;
+              });
+              setLives(l => l + 1);
+              setHeartPop(true); setTimeout(() => setHeartPop(false), 500);
+            }
+          };
+
+          const handleRevive = () => {
+            if (globalScore >= 1000) {
+              AudioEngine.play('1up');
+              setGlobalScore(prev => {
+                const n = prev - 1000;
+                localStorage.setItem('globalScore_3B', n);
+                return n;
+              });
+              setLives(1);
+              setIsGameEnded(false);
+              const t = currentMode === 'vocab' ? 45 : currentMode === 'sentence' ? 20 : 12;
+              setTimeLeft(t); setMaxTime(t);
+            }
+          };
+
+          const startGame = (planet, modeKey) => {
+            AudioEngine.play('whoosh'); const rawData = planet.modes[modeKey];
+            const sessionData = shuffle(rawData).slice(0, 5);
+            setGameData(sessionData); setCurrentIndex(0); setLives(3); setScore(0); setNextLifeScore(5000);
+            setCombo(1); setIsGameEnded(false); setSelectedPlanet(planet); setCurrentMode(modeKey); setScreen('GAME');
+            const t = modeKey === 'vocab' ? 45 : modeKey === 'sentence' ? 20 : 12; setTimeLeft(t); setMaxTime(t);
+            if (modeKey === 'vocab') {
+              setVocabLeft(shuffle(sessionData.map((item, i) => ({ id: `v-${i}`, text: item[0] }))));
+              setVocabRight(shuffle(sessionData.map((item, i) => ({ id: `v-${i}`, text: item[1] }))));
+              setMatchedPairs([]); setSelectedLeft(null); setSelectedRight(null);
+            } else if (modeKey === 'sentence') setupSentence(sessionData[0]);
+          };
+
+          const setupSentence = (item) => {
+            const words = item[0].split(" "); setSentenceWords(shuffle(words.map((w, i) => ({ id: `word-${i}`, text: w })))); setSelectedWords([]);
+          };
+
+          const handleVocabSelect = (side, item) => {
+            if (wrongShake || isGameEnded || matchedPairs.includes(item.id)) return;
+            AudioEngine.play('whoosh');
+            let newL = side === 'left' ? item : selectedLeft; let newR = side === 'right' ? item : selectedRight;
+            if (side === 'left') setSelectedLeft(item); else setSelectedRight(item);
+            if (newL && newR) {
+              if (newL.id === newR.id) {
+                triggerCorrect(); setMatchedPairs(prev => [...prev, newL.id]); setSelectedLeft(null); setSelectedRight(null);
+                if (matchedPairs.length + 1 === gameData.length) setTimeout(() => handleWin(), 500);
+              } else { triggerWrong(); setSelectedLeft(null); setSelectedRight(null); }
+            }
+          };
+
+          const handleMultipleChoice = (isCorrect) => {
+            if (wrongShake || isGameEnded) return;
+            if (isCorrect) {
+              triggerCorrect(); if (currentIndex + 1 >= gameData.length) setTimeout(() => handleWin(), 500);
+              else { setCurrentIndex(i => i + 1); const t = 12; setTimeLeft(t); setMaxTime(t); }
+            } else triggerWrong();
+          };
+
+          const handleSentenceClick = (word, fromSelected) => {
+            if (wrongShake || isGameEnded) return; 
+            AudioEngine.play('whoosh');
+            
+            if (fromSelected) {
+              setSelectedWords(prev => prev.filter(w => w.id !== word.id)); 
+              setSentenceWords(prev => prev.some(w => w.id === word.id) ? prev : [...prev, word]);
+            } else {
+              if (selectedWords.some(w => w.id === word.id)) return;
+              
+              setSentenceWords(prev => prev.filter(w => w.id !== word.id)); 
+              const ns = [...selectedWords, word]; 
+              setSelectedWords(ns);
+              
+              const target = gameData[currentIndex][0];
+              if (ns.length === target.split(" ").length) {
+                if (ns.map(w => w.text).join(" ") === target) {
+                  triggerCorrect(); 
+                  if (currentIndex + 1 >= gameData.length) setTimeout(() => handleWin(), 800);
+                  else setTimeout(() => { setCurrentIndex(i => i + 1); setupSentence(gameData[currentIndex + 1]); setTimeLeft(20); setMaxTime(20); }, 800);
+                } else { 
+                  triggerWrong(); 
+                  setTimeout(() => { 
+                    setSentenceWords(prevPool => {
+                      const uniqueNew = ns.filter(nw => !prevPool.some(pw => pw.id === nw.id));
+                      return shuffle([...prevPool, ...uniqueNew]);
+                    });
+                    setSelectedWords([]); 
+                  }, 500); 
+                }
+              }
+            }
+          };
+
+          const handleWin = () => {
+            AudioEngine.play('win'); setIsGameEnded('win'); 
+            const stars = lives >= 3 ? 3 : (lives === 2 ? 2 : 1);
+            const key = `${selectedPlanet.id}_${currentMode}`; setSavedData(prev => { const n = {...prev, [key]: Math.max(prev[key] || 0, stars)}; localStorage.setItem('spaceData_3B', JSON.stringify(n)); return n; });
+            setWinMessage(WIN_MESSAGES[Math.floor(Math.random() * WIN_MESSAGES.length)]);
+          };
+
+          return (
+            <div className="min-h-screen relative flex flex-col items-center select-none overflow-hidden">
+              <SpaceBackground />
+              
+              {screen === 'MAP' && (
+                <div className="relative z-10 w-full max-w-5xl px-4 py-8 flex flex-col items-center min-h-screen">
+                  {/* 全局积分展示面板 */}
+                  <div className="absolute top-6 left-6 md:top-8 md:left-8 bg-slate-900/80 border border-yellow-500 rounded-2xl px-4 py-2 md:px-6 md:py-3 shadow-[0_0_20px_rgba(250,204,21,0.2)] flex items-center gap-3 z-50">
+                    <span className="text-3xl md:text-4xl animate-pulse">⚡</span>
+                    <div className="flex flex-col text-left">
+                      <span className="text-[10px] md:text-xs text-yellow-400 font-bold tracking-widest uppercase">总能量储备</span>
+                      <span className="text-xl md:text-3xl font-black text-white font-mono leading-none">{globalScore}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-center mb-8 mt-16 md:mt-8">
+                    <div className="text-7xl mb-4" style={{animation: 'float 3s infinite ease-in-out'}}>🛸</div>
+                    <h1 className="text-4xl md:text-6xl font-black mb-4 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500">欢迎来到三0二星球</h1>
+                    <p className="text-lg text-cyan-200 tracking-widest font-light bg-black/30 px-6 py-2 rounded-full border border-cyan-500/30 inline-block">3B 英语互动训练基地</p>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pb-20 w-full overflow-y-auto max-h-[60vh] p-4">
+                    {UNITS_DATA.map(p => (
+                      <div key={p.id} className="flex flex-col items-center group">
+                        <button onClick={() => { AudioEngine.play('whoosh'); setSelectedPlanet(p); }} style={{ animation: `float ${Math.random() * 2 + 3}s infinite ease-in-out` }} className={`w-32 h-32 rounded-full bg-gradient-to-br ${p.color} planet-glow relative flex items-center justify-center text-5xl hover:scale-110 transition-transform cursor-pointer border-4 border-transparent group-hover:border-white/50`}>{p.emoji}</button>
+                        <div className="mt-4 text-center bg-slate-900/60 px-4 py-2 rounded-xl border border-slate-700 w-full">
+                          <div className="font-black text-lg text-white">{p.name}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {selectedPlanet && (
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+                      <div className="bg-slate-900 border-2 border-cyan-500 rounded-3xl p-6 max-w-md w-full shadow-2xl relative">
+                        <div className="flex justify-between items-start mb-6">
+                          <div><h3 className="text-3xl font-black">{selectedPlanet.name}</h3><p className="text-cyan-400 text-lg">{selectedPlanet.title}</p></div>
+                          <button onClick={() => { AudioEngine.play('whoosh'); setSelectedPlanet(null); }} className="text-4xl text-slate-500 hover:text-white transition-colors">&times;</button>
+                        </div>
+                        <div className="space-y-3">
+                          {[
+                            { key: 'vocab', name: '单词配对', desc: '能量块直连', color: 'from-blue-600 to-cyan-600', icon: '⚡' },
+                            { key: 'phrase', name: '词组拦截', desc: '三选一射击', color: 'from-purple-600 to-indigo-600', icon: '☄️' },
+                            { key: 'sentence', name: '句型重组', desc: '火箭拼装', color: 'from-pink-600 to-rose-600', icon: '🚀' },
+                            { key: 'phonics', name: '语音捕获', desc: '雷达探测', color: 'from-orange-500 to-amber-600', icon: '📡' }
+                          ].map(mode => {
+                            const stars = savedData[`${selectedPlanet.id}_${mode.key}`] || 0;
+                            return (
+                              <button key={mode.key} onClick={() => startGame(selectedPlanet, mode.key)} className={`w-full flex items-center p-4 rounded-xl border-2 border-transparent hover:border-white transition-all active:scale-95 bg-gradient-to-r ${mode.color} shadow-lg`}>
+                                <div className="w-10 h-10 bg-black/20 rounded-lg flex items-center justify-center text-xl mr-3">{mode.icon}</div>
+                                <div className="flex-1 text-left"><div className="font-black text-lg text-white">{mode.name}</div><div className="text-white/70 text-xs">{mode.desc}</div></div>
+                                <div className="text-yellow-300 tracking-widest text-lg bg-black/30 px-3 py-1 rounded-full border border-yellow-500/30">{"⭐".repeat(stars)}{"☆".repeat(3 - stars)}</div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {screen === 'GAME' && (
+                <div className={`relative z-10 w-full max-w-5xl px-4 py-6 flex flex-col h-screen ${wrongShake ? 'shake-anim' : ''}`}>
+                  <div className="flex flex-col w-full bg-slate-900/80 backdrop-blur border-2 border-slate-700 rounded-2xl p-4 mb-4 shadow-xl">
+                    <div className="flex justify-between items-center w-full">
+                      
+                      <div className="flex items-center gap-2 md:gap-4">
+                        <div className={`flex space-x-1 md:space-x-2 text-xl md:text-2xl bg-slate-800 px-2 py-1 md:px-3 md:py-1 rounded-xl ${heartPop ? 'life-up-anim' : ''}`}>
+                           {[...Array(Math.max(3, lives))].map((_, i) => (
+                             <span key={i} className={`transition-all duration-300 ${i < lives ? 'scale-100 drop-shadow-[0_0_10px_red]' : 'opacity-20 scale-75 grayscale'}`}>❤️</span>
+                           ))}
+                        </div>
+                        {/* 局内主动购命按钮 */}
+                        <button 
+                          onClick={handleBuyLife} 
+                          className={`px-2 py-1 rounded-lg font-bold text-xs md:text-sm border transition-all ${globalScore >= 1000 ? 'bg-green-600/20 border-green-500 text-green-400 hover:bg-green-500 hover:text-white active:scale-95' : 'bg-slate-800 border-slate-700 text-slate-500 opacity-50 cursor-not-allowed'}`}
+                          title="消耗1000总能量购买1次机会"
+                        >
+                          ➕ ❤️ <span className="hidden md:inline">(1000⚡)</span>
+                        </button>
+                      </div>
+
+                      <div className="flex flex-col items-center">
+                        <span className="text-cyan-400 text-[10px] md:text-xs font-bold tracking-widest uppercase bg-cyan-900/30 px-2 py-1 rounded-full mb-1">{selectedPlanet.name} - {currentMode.toUpperCase()}</span>
+                        <span className="text-2xl md:text-3xl font-black text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]">{score}</span>
+                      </div>
+                      <button onClick={() => { AudioEngine.play('whoosh'); setScreen('MAP'); }} className="bg-red-500/20 hover:bg-red-500 text-red-200 border border-red-500/50 px-3 py-1 md:px-4 md:py-2 rounded-xl font-bold text-sm md:text-base">撤退</button>
+                    </div>
+                    <div className="w-full mt-4">
+                      <div className="flex justify-between text-[10px] font-mono text-cyan-300 mb-1"><span>TIME LIMIT</span><span className={`${timeLeft <= 5 ? 'text-red-400 animate-pulse font-bold' : ''}`}>{timeLeft}s</span></div>
+                      <div className="relative w-full h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700"><div className={`absolute top-0 left-0 h-full transition-all duration-1000 ease-linear ${timeLeft > maxTime * 0.4 ? 'bg-cyan-400' : timeLeft > maxTime * 0.2 ? 'bg-yellow-400' : 'bg-red-500'}`} style={{ width: `${(timeLeft / maxTime) * 100}%` }}></div></div>
+                    </div>
+                  </div>
+                  {showCombo && (
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none" style={{ animation: 'comboPop 0.8s ease-out forwards' }}><div className="text-7xl font-black text-yellow-400 italic drop-shadow-[0_0_30px_#ca8a04]" style={{WebkitTextStroke: '2px #b45309'}}>COMBO {combo-1}!</div></div>
+                  )}
+                  <div className="flex-1 relative w-full overflow-y-auto">
+                    {(() => {
+                      if (isGameEnded) return null; const currentItem = gameData[currentIndex];
+                      switch (currentMode) {
+                        case 'vocab': return (
+                          <div className="flex justify-between items-center w-full max-w-2xl mx-auto h-full px-4 pt-10">
+                            <div className="flex flex-col gap-3 w-5/12">{vocabLeft.map(item => { const isMatched = matchedPairs.includes(item.id); const isSelected = selectedLeft?.id === item.id; return (<button key={item.id} onClick={() => handleVocabSelect('left', item)} disabled={isMatched} className={`p-4 rounded-xl font-bold text-lg transition-all ${isMatched ? 'opacity-0 scale-95 pointer-events-none' : isSelected ? 'bg-cyan-400 text-slate-900 border-4 border-white' : 'bg-slate-800 text-cyan-300 border border-cyan-700 hover:bg-slate-700'}`}>{item.text}</button>); })}</div>
+                            <div className="text-3xl text-cyan-500 opacity-50">⚡</div>
+                            <div className="flex flex-col gap-3 w-5/12">{vocabRight.map(item => { const isMatched = matchedPairs.includes(item.id); const isSelected = selectedRight?.id === item.id; return (<button key={item.id} onClick={() => handleVocabSelect('right', item)} disabled={isMatched} className={`p-4 rounded-xl font-bold text-lg transition-all ${isMatched ? 'opacity-0 scale-95 pointer-events-none' : isSelected ? 'bg-purple-400 text-white border-4 border-white' : 'bg-slate-800 text-purple-300 border border-purple-700 hover:bg-slate-700'}`}>{item.text}</button>); })}</div>
+                          </div>
+                        );
+                        case 'phrase': return (
+                          <div className="flex flex-col items-center justify-center w-full max-w-xl mx-auto h-full space-y-10 pt-10">
+                            <div className="bg-slate-800/80 border-2 border-cyan-400 rounded-2xl p-8 w-full text-center shadow-lg"><h2 className="text-4xl font-black">{currentItem[0]}</h2></div>
+                            <div className="grid grid-cols-1 gap-3 w-full">{currentOptions.map((opt, idx) => (<button key={idx} onClick={() => handleMultipleChoice(opt[1] === currentItem[1])} className="bg-slate-800 border border-indigo-500 p-5 rounded-xl text-xl font-bold transition-all hover:bg-cyan-700 active:scale-95">{opt[1]}</button>))}</div>
+                          </div>
+                        );
+                        case 'phonics': return (
+                          <div className="flex flex-col items-center justify-center w-full max-w-xl mx-auto h-full space-y-8 pt-6">
+                            <div className="bg-slate-800/80 border-2 border-amber-400 rounded-2xl p-6 w-full text-center shadow-lg">
+                               <span className="text-amber-400 text-sm font-bold tracking-widest mb-1 block uppercase">目标锁定 ({currentIndex + 1}/{gameData.length})</span>
+                               <h2 className="text-4xl md:text-5xl font-black text-white mb-2">{currentItem[0]}</h2>
+                               <p className="text-amber-400 text-sm font-bold">👉 悬停探索卡牌，找出正确读音！</p>
+                            </div>
+                            <div className="grid grid-cols-3 gap-4 w-full px-4">
+                              {currentOptions.map((opt, idx) => (
+                                <div key={idx} onClick={() => handleMultipleChoice(opt[1] === currentItem[1])} className="flip-card h-32 w-full cursor-pointer">
+                                   <div className="flip-card-inner shadow-lg">
+                                      <div className="flip-card-front bg-gradient-to-br from-amber-600 to-orange-800 border-2 border-amber-400 flex items-center justify-center">
+                                         <span className="text-5xl drop-shadow-md">❓</span>
+                                      </div>
+                                      <div className="flip-card-back bg-slate-800 border-2 border-cyan-400 flex items-center justify-center">
+                                         <span className="text-xl md:text-2xl font-bold text-white">{opt[1]}</span>
+                                      </div>
+                                   </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                        case 'sentence': return (
+                          <div className="flex flex-col items-center w-full max-w-3xl mx-auto h-full pt-10 space-y-10">
+                            <h2 className="text-2xl font-bold bg-slate-800 px-6 py-2 rounded-full border border-purple-500">{currentItem[1]}</h2>
+                            <div className="w-full min-h-[80px] bg-slate-900/50 border-2 border-dashed border-cyan-500/50 rounded-xl p-4 flex flex-wrap gap-2 items-center justify-center shadow-inner">
+                              {selectedWords.map(word => (<button key={word.id} onClick={() => handleSentenceClick(word, true)} className="bg-cyan-500 text-slate-900 font-black text-xl px-5 py-2 rounded-lg transition-all active:translate-y-1">{word.text}</button>))}
+                              {selectedWords.length === 0 && <span className="text-slate-500 text-sm italic">点击下方零件拼装句子</span>}
+                            </div>
+                            <div className="flex flex-wrap gap-2 justify-center">
+                              {sentenceWords.map(word => (<button key={word.id} onClick={() => handleSentenceClick(word, false)} className="bg-slate-700 border border-slate-500 px-4 py-2 rounded-lg font-bold hover:bg-slate-600 transition-all active:scale-95">{word.text}</button>))}
+                            </div>
+                          </div>
+                        );
+                        default: return null;
+                      }
+                    })()}
+                  </div>
+                  {isGameEnded && (
+                    <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center z-50 p-6 backdrop-blur-md">
+                      <div className="bg-slate-900 border-4 border-cyan-400 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+                        {isGameEnded === 'win' ? (
+                          <>
+                            <div className="text-6xl mb-4">🏆</div>
+                            <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-purple-400 mb-4 win-text-anim leading-snug">{winMessage}</h2>
+                            <p className="text-gray-300 text-lg mb-6">获得能量: <span className="font-mono text-2xl text-yellow-400">{score}</span></p>
+                          </>
+                        ) : (
+                          <>
+                            <div className="text-6xl mb-4">💥</div><h2 className="text-3xl font-black text-red-500 mb-4">护盾耗尽</h2><p className="text-gray-400 text-sm mb-6">别灰心，重新调整战术吧！</p>
+                          </>
+                        )}
+                        
+                        {/* 结算面板复活按钮 */}
+                        {isGameEnded === 'lose' && (
+                           <div className="flex gap-3 mb-3">
+                             {globalScore >= 1000 ? (
+                               <button onClick={handleRevive} className="flex-1 bg-green-500 hover:bg-green-400 text-white py-3 rounded-lg font-black shadow-[0_0_15px_rgba(34,197,94,0.4)] animate-pulse transition-all">
+                                 ⚡ 消耗1000能量复活
+                               </button>
+                             ) : (
+                               <div className="flex-1 bg-slate-800 text-slate-500 py-3 rounded-lg font-bold border border-slate-700 text-sm flex items-center justify-center">
+                                 能量不足，无法复活 (需1000⚡)
+                               </div>
+                             )}
+                           </div>
+                        )}
+
+                        <div className="flex gap-3">
+                          <button onClick={() => setScreen('MAP')} className="flex-1 bg-slate-700 hover:bg-slate-600 py-3 rounded-lg font-bold transition-all">返回星系</button>
+                          <button onClick={() => startGame(selectedPlanet, currentMode)} className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-slate-900 py-3 rounded-lg font-black shadow-lg transition-all">再次出击</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
