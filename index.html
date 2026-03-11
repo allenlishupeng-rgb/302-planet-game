@@ -22,7 +22,6 @@
         .win-text-anim { animation: textPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
         .life-up-anim { animation: textPop 0.5s ease-out; }
         
-        /* 纯 CSS 解决悬停卡顿的翻转体系 */
         .flip-card { perspective: 1000px; }
         .flip-card-inner {
             position: relative;
@@ -31,7 +30,6 @@
             transition: transform 0.5s cubic-bezier(0.4, 0.2, 0.2, 1);
             transform-style: preserve-3d;
         }
-        /* 悬停外层，内层翻转，防止触控区域闪烁 */
         .flip-card:hover .flip-card-inner { transform: rotateY(180deg); }
         
         .flip-card-front, .flip-card-back {
@@ -152,21 +150,73 @@
             this.init();
             if (!this.ctx || this.bgmPlaying) return;
             this.bgmPlaying = true;
-            const freqs = { G4: 392, E4: 329.6, A4: 440, B4: 493.9, Bb4: 466.2, C5: 523.3, D5: 587.3, E5: 659.3, F5: 698.5, G5: 784, A5: 880 };
-            const seq = ['E5',0,'E5',0, 0,'E5',0,'C5', 'E5',0,0,0, 'G5',0,0,0, 0,0,0,0, 'G4',0,0,0, 0,0,0,0, 0,0,0,0, 'C5',0,0,0, 0,0,'G4',0, 0,0,'E4',0, 0,0,'A4',0, 0,'B4',0,'Bb4', 'A4',0,0,0, 'G4',0,'E5',0, 'G5',0,'A5',0, 0,'F5',0,'G5', 0,'E5',0,0, 'C5',0,'D5',0, 'B4',0,0,0 ];
-            const stepTime = 0.12; let nextNoteTime = this.ctx.currentTime + 0.1; let currentStep = 0;
+            
+            // 宇宙电子风频率表 (C Minor 五声音阶为主，适合营造广袤神秘的空间感)
+            const freqs = {
+                G3: 196.00, Ab3: 207.65, Bb3: 233.08, B3: 246.94,
+                C4: 261.63, D4: 293.66, Eb4: 311.13, F4: 349.23, G4: 392.00, Ab4: 415.30, Bb4: 466.16,
+                C5: 523.25
+            };
+
+            // 经典科幻空间感琶音和弦进行 (Cm -> Bb -> Ab -> G)
+            const seq = [
+                'C4','Eb4','G4','C5','G4','Eb4', 'C4','Eb4','G4','C5','G4','Eb4',
+                'Bb3','D4','F4','Bb4','F4','D4', 'Bb3','D4','F4','Bb4','F4','D4',
+                'Ab3','C4','Eb4','Ab4','Eb4','C4', 'Ab3','C4','Eb4','Ab4','Eb4','C4',
+                'G3','B3','D4','G4','D4','B3', 'G3','B3','D4','G4','D4','B3'
+            ];
+            
+            const stepTime = 0.25; // 舒缓的宇宙节奏，0.25秒一个音符
+            let nextNoteTime = this.ctx.currentTime + 0.1; 
+            let currentStep = 0;
+            
             const schedule = () => {
               if (!this.bgmPlaying) return;
+              
+              // 强制时间轴同步，防止切屏后定时器堆积导致崩溃
+              if (nextNoteTime < this.ctx.currentTime) {
+                  nextNoteTime = this.ctx.currentTime + 0.1;
+              }
+
               while (nextNoteTime < this.ctx.currentTime + 0.5) {
                 const note = seq[currentStep];
                 if (note) {
-                  const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-                  osc.type = 'square'; osc.frequency.value = freqs[note];
-                  gain.gain.setValueAtTime(0.02, nextNoteTime); gain.gain.setTargetAtTime(0, nextNoteTime + stepTime * 0.8, 0.015);
-                  osc.connect(gain); gain.connect(this.ctx.destination);
-                  osc.start(nextNoteTime); osc.stop(nextNoteTime + stepTime);
+                    // 1. 星光闪烁般的电子琶音层 (Sine Wave)
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine'; // 正弦波最为平滑空灵
+                    osc.frequency.value = freqs[note];
+
+                    // 极长释放时间，产生空间萦绕的回音感，最高音量压制在0.015
+                    gain.gain.setValueAtTime(0, nextNoteTime);
+                    gain.gain.linearRampToValueAtTime(0.015, nextNoteTime + stepTime * 0.5);
+                    gain.gain.exponentialRampToValueAtTime(0.001, nextNoteTime + stepTime * 4);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(nextNoteTime);
+                    osc.stop(nextNoteTime + stepTime * 4.5);
+
+                    // 2. 飞船引擎般的低频底噪层 (Triangle Wave)
+                    // 每12个节拍（换和弦时）触发一次低音长鸣
+                    if (currentStep % 12 === 0) {
+                        const bassOsc = this.ctx.createOscillator();
+                        const bassGain = this.ctx.createGain();
+                        bassOsc.type = 'triangle'; // 三角波有轻微的电子嗡鸣感
+                        bassOsc.frequency.value = freqs[note] / 2; // 根音降八度
+
+                        bassGain.gain.setValueAtTime(0, nextNoteTime);
+                        bassGain.gain.linearRampToValueAtTime(0.02, nextNoteTime + 1);
+                        bassGain.gain.exponentialRampToValueAtTime(0.001, nextNoteTime + stepTime * 12);
+
+                        bassOsc.connect(bassGain);
+                        bassGain.connect(this.ctx.destination);
+                        bassOsc.start(nextNoteTime);
+                        bassOsc.stop(nextNoteTime + stepTime * 12.5);
+                    }
                 }
-                nextNoteTime += stepTime; currentStep = (currentStep + 1) % seq.length;
+                nextNoteTime += stepTime; 
+                currentStep = (currentStep + 1) % seq.length;
               }
               this.bgmTimer = setTimeout(schedule, 100);
             };
@@ -225,7 +275,6 @@
           const [lives, setLives] = useState(3);
           const [score, setScore] = useState(0);
           
-          // 新增：全局积分类状态
           const [globalScore, setGlobalScore] = useState(0);
           const [nextLifeScore, setNextLifeScore] = useState(5000);
           
@@ -248,17 +297,37 @@
           const [wrongShake, setWrongShake] = useState(false);
           const [heartPop, setHeartPop] = useState(false);
 
-          // 使用 useMemo 缓存选项，彻底防止倒计时重新渲染导致的洗牌
+          // Web Speech API: 文本转语音 (美式女声)
+          const playVoice = (text) => {
+            if (!window.speechSynthesis) return;
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.85; 
+            
+            const voices = window.speechSynthesis.getVoices();
+            const femaleVoice = voices.find(v => 
+              v.lang.startsWith('en-US') && 
+              (v.name.includes('Female') || v.name.includes('Zira') || v.name.includes('Samantha') || v.name.includes('Google US English'))
+            );
+            if (femaleVoice) {
+              utterance.voice = femaleVoice;
+            } else {
+              const anyUS = voices.find(v => v.lang.startsWith('en-US'));
+              if (anyUS) utterance.voice = anyUS;
+            }
+            window.speechSynthesis.speak(utterance);
+          };
+
           const currentOptions = useMemo(() => {
-            if (screen !== 'GAME' || !selectedPlanet || !currentMode || !gameData[currentIndex]) return [];
+            if (screen !== 'GAME' || !selectedPlanet || !currentMode || !gameData[currentIndex] || currentMode === 'listen') return [];
             if (currentMode === 'phrase') {
               const fullPool = selectedPlanet.modes[currentMode];
-              return getWrongOptions(gameData[currentIndex], fullPool, 2); // 3 选 1
+              return getWrongOptions(gameData[currentIndex], fullPool, 2); 
             }
             if (currentMode === 'phonics') {
               const fullPool = selectedPlanet.modes[currentMode];
-              const globalPool = UNITS_DATA.flatMap(u => u.modes.phonics || []); // 注入全局库防止单一音标单元无解
-              return getWrongOptions(gameData[currentIndex], fullPool, 2, globalPool); // 生成2个干扰项，总共3卡牌
+              const globalPool = UNITS_DATA.flatMap(u => u.modes.phonics || []); 
+              return getWrongOptions(gameData[currentIndex], fullPool, 2, globalPool); 
             }
             return [];
           }, [currentIndex, gameData, currentMode, selectedPlanet, screen]);
@@ -267,28 +336,30 @@
             const saved = localStorage.getItem('spaceData_3B'); if (saved) setSavedData(JSON.parse(saved));
             const savedGlobal = localStorage.getItem('globalScore_3B'); if (savedGlobal) setGlobalScore(parseInt(savedGlobal, 10));
             
+            if (window.speechSynthesis) window.speechSynthesis.getVoices();
+
             const handleFirstInteraction = () => { AudioEngine.startBGM(); document.removeEventListener('click', handleFirstInteraction); };
             document.addEventListener('click', handleFirstInteraction);
             return () => document.removeEventListener('click', handleFirstInteraction);
           }, []);
 
-          // 自动奖命机制 (通过全局积累触发)
           useEffect(() => {
+            if (currentMode === 'listen') return;
             if (score >= nextLifeScore) {
               const livesToAdd = Math.floor((score - nextLifeScore) / 5000) + 1;
               setLives(l => l + livesToAdd); setNextLifeScore(prev => prev + livesToAdd * 5000);
               AudioEngine.play('1up'); setHeartPop(true); setTimeout(() => setHeartPop(false), 500);
             }
-          }, [score, nextLifeScore]);
+          }, [score, nextLifeScore, currentMode]);
 
           useEffect(() => {
-            if (screen !== 'GAME' || isGameEnded || wrongShake || timeLeft <= 0) return;
+            if (screen !== 'GAME' || isGameEnded || wrongShake || timeLeft <= 0 || currentMode === 'listen') return;
             const timerId = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
             return () => clearInterval(timerId);
-          }, [screen, isGameEnded, wrongShake, timeLeft]);
+          }, [screen, isGameEnded, wrongShake, timeLeft, currentMode]);
 
           useEffect(() => {
-            if (screen === 'GAME' && !isGameEnded && !wrongShake && timeLeft === 0) {
+            if (screen === 'GAME' && !isGameEnded && !wrongShake && timeLeft === 0 && currentMode !== 'listen') {
               triggerWrong();
               const t = currentMode === 'vocab' ? 45 : currentMode === 'sentence' ? 20 : 12;
               setTimeLeft(t); setMaxTime(t);
@@ -305,52 +376,49 @@
             AudioEngine.play('correct'); 
             const gained = 1000 * selectedPlanet.id;
             setScore(s => s + gained);
-            
-            // 同步增加全局积分
             setGlobalScore(prev => {
                const n = prev + gained;
                localStorage.setItem('globalScore_3B', n);
                return n;
             });
-            
             setCombo(c => c + 1); setShowCombo(true); setTimeout(() => setShowCombo(false), 800);
           };
           
-          // 手动购买生命/复活函数
           const handleBuyLife = () => {
             if (globalScore >= 1000) {
               AudioEngine.play('1up');
-              setGlobalScore(prev => {
-                const n = prev - 1000;
-                localStorage.setItem('globalScore_3B', n);
-                return n;
-              });
-              setLives(l => l + 1);
-              setHeartPop(true); setTimeout(() => setHeartPop(false), 500);
+              setGlobalScore(prev => { const n = prev - 1000; localStorage.setItem('globalScore_3B', n); return n; });
+              setLives(l => l + 1); setHeartPop(true); setTimeout(() => setHeartPop(false), 500);
             }
           };
 
           const handleRevive = () => {
             if (globalScore >= 1000) {
               AudioEngine.play('1up');
-              setGlobalScore(prev => {
-                const n = prev - 1000;
-                localStorage.setItem('globalScore_3B', n);
-                return n;
-              });
-              setLives(1);
-              setIsGameEnded(false);
+              setGlobalScore(prev => { const n = prev - 1000; localStorage.setItem('globalScore_3B', n); return n; });
+              setLives(1); setIsGameEnded(false);
               const t = currentMode === 'vocab' ? 45 : currentMode === 'sentence' ? 20 : 12;
               setTimeLeft(t); setMaxTime(t);
             }
           };
 
           const startGame = (planet, modeKey) => {
-            AudioEngine.play('whoosh'); const rawData = planet.modes[modeKey];
+            AudioEngine.play('whoosh'); 
+            setSelectedPlanet(planet); setCurrentMode(modeKey); setScreen('GAME');
+
+            if (modeKey === 'listen') {
+               setIsGameEnded(false);
+               return; 
+            }
+
+            const rawData = planet.modes[modeKey];
             const sessionData = shuffle(rawData).slice(0, 5);
             setGameData(sessionData); setCurrentIndex(0); setLives(3); setScore(0); setNextLifeScore(5000);
-            setCombo(1); setIsGameEnded(false); setSelectedPlanet(planet); setCurrentMode(modeKey); setScreen('GAME');
-            const t = modeKey === 'vocab' ? 45 : modeKey === 'sentence' ? 20 : 12; setTimeLeft(t); setMaxTime(t);
+            setCombo(1); setIsGameEnded(false);
+            
+            const t = modeKey === 'vocab' ? 45 : modeKey === 'sentence' ? 20 : 12; 
+            setTimeLeft(t); setMaxTime(t);
+
             if (modeKey === 'vocab') {
               setVocabLeft(shuffle(sessionData.map((item, i) => ({ id: `v-${i}`, text: item[0] }))));
               setVocabRight(shuffle(sessionData.map((item, i) => ({ id: `v-${i}`, text: item[1] }))));
@@ -430,7 +498,6 @@
               
               {screen === 'MAP' && (
                 <div className="relative z-10 w-full max-w-5xl px-4 py-8 flex flex-col items-center min-h-screen">
-                  {/* 全局积分展示面板 */}
                   <div className="absolute top-6 left-6 md:top-8 md:left-8 bg-slate-900/80 border border-yellow-500 rounded-2xl px-4 py-2 md:px-6 md:py-3 shadow-[0_0_20px_rgba(250,204,21,0.2)] flex items-center gap-3 z-50">
                     <span className="text-3xl md:text-4xl animate-pulse">⚡</span>
                     <div className="flex flex-col text-left">
@@ -463,6 +530,7 @@
                         </div>
                         <div className="space-y-3">
                           {[
+                            { key: 'listen', name: '你说我听', desc: '词汇发音手册', color: 'from-emerald-500 to-teal-600', icon: '🎧' },
                             { key: 'vocab', name: '单词配对', desc: '能量块直连', color: 'from-blue-600 to-cyan-600', icon: '⚡' },
                             { key: 'phrase', name: '词组拦截', desc: '三选一射击', color: 'from-purple-600 to-indigo-600', icon: '☄️' },
                             { key: 'sentence', name: '句型重组', desc: '火箭拼装', color: 'from-pink-600 to-rose-600', icon: '🚀' },
@@ -470,10 +538,12 @@
                           ].map(mode => {
                             const stars = savedData[`${selectedPlanet.id}_${mode.key}`] || 0;
                             return (
-                              <button key={mode.key} onClick={() => startGame(selectedPlanet, mode.key)} className={`w-full flex items-center p-4 rounded-xl border-2 border-transparent hover:border-white transition-all active:scale-95 bg-gradient-to-r ${mode.color} shadow-lg`}>
+                              <button key={mode.key} onClick={() => startGame(selectedPlanet, mode.key)} className={`w-full flex items-center p-3 rounded-xl border-2 border-transparent hover:border-white transition-all active:scale-95 bg-gradient-to-r ${mode.color} shadow-lg`}>
                                 <div className="w-10 h-10 bg-black/20 rounded-lg flex items-center justify-center text-xl mr-3">{mode.icon}</div>
                                 <div className="flex-1 text-left"><div className="font-black text-lg text-white">{mode.name}</div><div className="text-white/70 text-xs">{mode.desc}</div></div>
-                                <div className="text-yellow-300 tracking-widest text-lg bg-black/30 px-3 py-1 rounded-full border border-yellow-500/30">{"⭐".repeat(stars)}{"☆".repeat(3 - stars)}</div>
+                                {mode.key !== 'listen' && (
+                                  <div className="text-yellow-300 tracking-widest text-lg bg-black/30 px-3 py-1 rounded-full border border-yellow-500/30">{"⭐".repeat(stars)}{"☆".repeat(3 - stars)}</div>
+                                )}
                               </button>
                             );
                           })}
@@ -485,42 +555,92 @@
               )}
               {screen === 'GAME' && (
                 <div className={`relative z-10 w-full max-w-5xl px-4 py-6 flex flex-col h-screen ${wrongShake ? 'shake-anim' : ''}`}>
-                  <div className="flex flex-col w-full bg-slate-900/80 backdrop-blur border-2 border-slate-700 rounded-2xl p-4 mb-4 shadow-xl">
-                    <div className="flex justify-between items-center w-full">
-                      
-                      <div className="flex items-center gap-2 md:gap-4">
-                        <div className={`flex space-x-1 md:space-x-2 text-xl md:text-2xl bg-slate-800 px-2 py-1 md:px-3 md:py-1 rounded-xl ${heartPop ? 'life-up-anim' : ''}`}>
-                           {[...Array(Math.max(3, lives))].map((_, i) => (
-                             <span key={i} className={`transition-all duration-300 ${i < lives ? 'scale-100 drop-shadow-[0_0_10px_red]' : 'opacity-20 scale-75 grayscale'}`}>❤️</span>
-                           ))}
+                  
+                  {currentMode !== 'listen' && (
+                    <div className="flex flex-col w-full bg-slate-900/80 backdrop-blur border-2 border-slate-700 rounded-2xl p-4 mb-4 shadow-xl">
+                      <div className="flex justify-between items-center w-full">
+                        <div className="flex items-center gap-2 md:gap-4">
+                          <div className={`flex space-x-1 md:space-x-2 text-xl md:text-2xl bg-slate-800 px-2 py-1 md:px-3 md:py-1 rounded-xl ${heartPop ? 'life-up-anim' : ''}`}>
+                             {[...Array(Math.max(3, lives))].map((_, i) => (
+                               <span key={i} className={`transition-all duration-300 ${i < lives ? 'scale-100 drop-shadow-[0_0_10px_red]' : 'opacity-20 scale-75 grayscale'}`}>❤️</span>
+                             ))}
+                          </div>
+                          <button onClick={handleBuyLife} className={`px-2 py-1 rounded-lg font-bold text-xs md:text-sm border transition-all ${globalScore >= 1000 ? 'bg-green-600/20 border-green-500 text-green-400 hover:bg-green-500 hover:text-white active:scale-95' : 'bg-slate-800 border-slate-700 text-slate-500 opacity-50 cursor-not-allowed'}`} title="消耗1000总能量购买1次机会">
+                            ➕ ❤️ <span className="hidden md:inline">(1000⚡)</span>
+                          </button>
                         </div>
-                        {/* 局内主动购命按钮 */}
-                        <button 
-                          onClick={handleBuyLife} 
-                          className={`px-2 py-1 rounded-lg font-bold text-xs md:text-sm border transition-all ${globalScore >= 1000 ? 'bg-green-600/20 border-green-500 text-green-400 hover:bg-green-500 hover:text-white active:scale-95' : 'bg-slate-800 border-slate-700 text-slate-500 opacity-50 cursor-not-allowed'}`}
-                          title="消耗1000总能量购买1次机会"
-                        >
-                          ➕ ❤️ <span className="hidden md:inline">(1000⚡)</span>
-                        </button>
+                        <div className="flex flex-col items-center">
+                          <span className="text-cyan-400 text-[10px] md:text-xs font-bold tracking-widest uppercase bg-cyan-900/30 px-2 py-1 rounded-full mb-1">{selectedPlanet.name} - {currentMode.toUpperCase()}</span>
+                          <span className="text-2xl md:text-3xl font-black text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]">{score}</span>
+                        </div>
+                        <button onClick={() => { AudioEngine.play('whoosh'); setScreen('MAP'); }} className="bg-red-500/20 hover:bg-red-500 text-red-200 border border-red-500/50 px-3 py-1 md:px-4 md:py-2 rounded-xl font-bold text-sm md:text-base">撤退</button>
                       </div>
+                      <div className="w-full mt-4">
+                        <div className="flex justify-between text-[10px] font-mono text-cyan-300 mb-1"><span>TIME LIMIT</span><span className={`${timeLeft <= 5 ? 'text-red-400 animate-pulse font-bold' : ''}`}>{timeLeft}s</span></div>
+                        <div className="relative w-full h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700"><div className={`absolute top-0 left-0 h-full transition-all duration-1000 ease-linear ${timeLeft > maxTime * 0.4 ? 'bg-cyan-400' : timeLeft > maxTime * 0.2 ? 'bg-yellow-400' : 'bg-red-500'}`} style={{ width: `${(timeLeft / maxTime) * 100}%` }}></div></div>
+                      </div>
+                    </div>
+                  )}
 
-                      <div className="flex flex-col items-center">
-                        <span className="text-cyan-400 text-[10px] md:text-xs font-bold tracking-widest uppercase bg-cyan-900/30 px-2 py-1 rounded-full mb-1">{selectedPlanet.name} - {currentMode.toUpperCase()}</span>
-                        <span className="text-2xl md:text-3xl font-black text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]">{score}</span>
-                      </div>
-                      <button onClick={() => { AudioEngine.play('whoosh'); setScreen('MAP'); }} className="bg-red-500/20 hover:bg-red-500 text-red-200 border border-red-500/50 px-3 py-1 md:px-4 md:py-2 rounded-xl font-bold text-sm md:text-base">撤退</button>
+                  {currentMode === 'listen' && (
+                    <div className="flex justify-between items-center w-full bg-slate-900/80 backdrop-blur border-2 border-emerald-500/50 rounded-2xl p-4 mb-4 shadow-xl">
+                      <span className="text-emerald-400 font-bold tracking-widest uppercase text-sm md:text-base">🎧 {selectedPlanet.name} - 你说我听</span>
+                      <button onClick={() => { AudioEngine.play('whoosh'); setScreen('MAP'); }} className="bg-red-500/20 hover:bg-red-500 text-red-200 border border-red-500/50 px-4 py-2 rounded-xl font-bold text-sm">返回星系</button>
                     </div>
-                    <div className="w-full mt-4">
-                      <div className="flex justify-between text-[10px] font-mono text-cyan-300 mb-1"><span>TIME LIMIT</span><span className={`${timeLeft <= 5 ? 'text-red-400 animate-pulse font-bold' : ''}`}>{timeLeft}s</span></div>
-                      <div className="relative w-full h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700"><div className={`absolute top-0 left-0 h-full transition-all duration-1000 ease-linear ${timeLeft > maxTime * 0.4 ? 'bg-cyan-400' : timeLeft > maxTime * 0.2 ? 'bg-yellow-400' : 'bg-red-500'}`} style={{ width: `${(timeLeft / maxTime) * 100}%` }}></div></div>
-                    </div>
-                  </div>
-                  {showCombo && (
+                  )}
+
+                  {showCombo && currentMode !== 'listen' && (
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none" style={{ animation: 'comboPop 0.8s ease-out forwards' }}><div className="text-7xl font-black text-yellow-400 italic drop-shadow-[0_0_30px_#ca8a04]" style={{WebkitTextStroke: '2px #b45309'}}>COMBO {combo-1}!</div></div>
                   )}
-                  <div className="flex-1 relative w-full overflow-y-auto">
+
+                  <div className="flex-1 relative w-full overflow-y-auto overflow-x-hidden pb-10">
                     {(() => {
-                      if (isGameEnded) return null; const currentItem = gameData[currentIndex];
+                      if (isGameEnded) return null; 
+
+                      if (currentMode === 'listen') {
+                        const allVocab = selectedPlanet.modes.vocab;
+                        const allPhrase = selectedPlanet.modes.phrase;
+                        return (
+                          <div className="w-full max-w-3xl mx-auto space-y-8 px-2">
+                             <div className="bg-emerald-900/30 border border-emerald-500/50 rounded-2xl p-6 text-center shadow-lg">
+                                <h2 className="text-2xl md:text-3xl font-black text-emerald-400 mb-2">词汇发音手册</h2>
+                                <p className="text-emerald-200 text-sm">点击小喇叭，跟着标准美音读起来！</p>
+                             </div>
+
+                             <div className="space-y-4">
+                                <h3 className="text-xl font-bold text-emerald-300 border-b border-emerald-500/30 pb-2">🌟 重点单词 (Words)</h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                   {allVocab.map((item, idx) => (
+                                     <div key={`v-${idx}`} className="flex justify-between items-center bg-slate-800/80 border border-slate-600 rounded-xl p-4 hover:border-emerald-400 transition-colors group">
+                                        <div className="flex flex-col text-left">
+                                           <span className="text-xl font-black text-white group-hover:text-emerald-300 transition-colors">{item[0]}</span>
+                                           <span className="text-sm text-slate-400">{item[1]}</span>
+                                        </div>
+                                        <button onClick={() => playVoice(item[0])} className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl hover:bg-emerald-500 hover:text-white transition-all active:scale-95 shadow-md">🔊</button>
+                                     </div>
+                                   ))}
+                                </div>
+                             </div>
+
+                             <div className="space-y-4">
+                                <h3 className="text-xl font-bold text-emerald-300 border-b border-emerald-500/30 pb-2">💫 核心词组 (Phrases)</h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                   {allPhrase.map((item, idx) => (
+                                     <div key={`p-${idx}`} className="flex justify-between items-center bg-slate-800/80 border border-slate-600 rounded-xl p-4 hover:border-emerald-400 transition-colors group">
+                                        <div className="flex flex-col text-left pr-4">
+                                           <span className="text-lg font-black text-white group-hover:text-emerald-300 transition-colors">{item[0]}</span>
+                                           <span className="text-sm text-slate-400">{item[1]}</span>
+                                        </div>
+                                        <button onClick={() => playVoice(item[0])} className="w-12 h-12 rounded-full shrink-0 bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl hover:bg-emerald-500 hover:text-white transition-all active:scale-95 shadow-md">🔊</button>
+                                     </div>
+                                   ))}
+                                </div>
+                             </div>
+                          </div>
+                        );
+                      }
+
+                      const currentItem = gameData[currentIndex];
                       switch (currentMode) {
                         case 'vocab': return (
                           <div className="flex justify-between items-center w-full max-w-2xl mx-auto h-full px-4 pt-10">
@@ -574,7 +694,7 @@
                       }
                     })()}
                   </div>
-                  {isGameEnded && (
+                  {isGameEnded && currentMode !== 'listen' && (
                     <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center z-50 p-6 backdrop-blur-md">
                       <div className="bg-slate-900 border-4 border-cyan-400 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
                         {isGameEnded === 'win' ? (
